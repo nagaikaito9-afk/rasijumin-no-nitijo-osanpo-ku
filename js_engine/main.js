@@ -1,5 +1,5 @@
 /**
- * main.js - 2D Canvas Main Game Loop with Mouse Grab & Drop Physics & Non-overlapping Speech Bubbles
+ * main.js - 2D Canvas Main Loop with Water Prank Drop Physics, 10x Map, & 4 Major Events
  */
 
 class ResidentLifeGame {
@@ -10,15 +10,16 @@ class ResidentLifeGame {
     this.timeInSeconds = 360; // Start 06:00 AM
     this.tickCount = 0;
 
-    this.world = new World(54, 38, 32);
+    // 160x120 10x Massive Map!
+    this.world = new World(160, 120, 32);
     this.residents = [];
     this.selectedResident = null;
     this.selectedHouseId = null;
 
-    // Grab & Carry Physics State
+    // Grab Physics State
     this.grabbedResident = null;
 
-    // 2D Camera Controller (Pan, Zoom, Follow)
+    // 2D Camera Controller
     this.camera2D = new window.CameraSystem(this.canvas);
     this.camera2D.centerOn(this.world.width, this.world.height);
 
@@ -43,7 +44,7 @@ class ResidentLifeGame {
 
   initResidents() {
     this.residents = Resident.createRoster10(this.world.houses);
-    this.addTickerEvent('🏡', '10人の住民たちが自律生活をスタートしました！ (住民をつまんで持ち上げてポイッと移動できます！)');
+    this.addTickerEvent('🗺️', '【超巨大アプデ完了】 160×120の10倍大マップ（海水浴リゾート、BBQキャンプ場、メモリアル霊園）が起動しました！');
   }
 
   addTickerEvent(icon, msg) {
@@ -55,11 +56,9 @@ class ResidentLifeGame {
 
     this.canvas.addEventListener('mousedown', (e) => {
       isMouseDown = true;
-
       let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
       let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
 
-      // 1. MOUSE GRAB: Check if clicked directly on a Resident to pick them up!
       let targetRes = null;
       for (let r of this.residents) {
         if (Math.hypot(r.x - worldX, r.y - worldY) < 28) {
@@ -76,7 +75,6 @@ class ResidentLifeGame {
         return;
       }
 
-      // 2. Camera Drag Panning
       this.camera2D.isDragging = true;
       this.camera2D.dragStartX = e.clientX - this.camera2D.panX;
       this.camera2D.dragStartY = e.clientY - this.camera2D.panY;
@@ -86,7 +84,6 @@ class ResidentLifeGame {
       let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
       let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
 
-      // Update Grabbed Resident Position to follow mouse cursor!
       if (this.grabbedResident) {
         this.grabbedResident.x = worldX;
         this.grabbedResident.y = worldY;
@@ -105,11 +102,11 @@ class ResidentLifeGame {
       isMouseDown = false;
       this.camera2D.isDragging = false;
 
-      // MOUSE DROP: Drop grabbed resident at cursor location!
+      // MOUSE DROP WITH WATER PRANK REACTION CHECK
       if (this.grabbedResident) {
         let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
         let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
-        this.grabbedResident.dropAt(worldX, worldY);
+        this.grabbedResident.dropAt(worldX, worldY, this.world, (icon, text) => this.addTickerEvent(icon, text));
         window.AudioSynth.play('happy');
         this.grabbedResident = null;
       }
@@ -118,7 +115,7 @@ class ResidentLifeGame {
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       let zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      let newZoom = Math.max(0.5, Math.min(2.5, this.camera2D.zoom * zoomFactor));
+      let newZoom = Math.max(0.2, Math.min(2.5, this.camera2D.zoom * zoomFactor));
       let mouseX = e.clientX;
       let mouseY = e.clientY;
       this.camera2D.panX = mouseX - (mouseX - this.camera2D.panX) * (newZoom / this.camera2D.zoom);
@@ -176,13 +173,18 @@ class ResidentLifeGame {
       r.update(this.world, timeInfo, this.residents, (icon, msg) => this.addTickerEvent(icon, msg), (type) => window.AudioSynth.play(type));
     }
 
-    // Periodic Town Events (Makeovers & Construction & Gossip)
+    // Trigger Major Events
     if (this.tickCount % 1200 === 0) {
+      this.eventsManager.triggerBeachEvent();
+    } else if (this.tickCount % 1800 === 0) {
+      this.eventsManager.triggerBBQEvent();
+    } else if (this.tickCount % 2400 === 0) {
+      this.eventsManager.triggerLoveLetterEvent();
+    } else if (this.tickCount % 1400 === 0) {
       this.eventsManager.triggerMakeoverEvent();
-    } else if (this.tickCount % 2200 === 0) {
-      this.eventsManager.triggerConstructionEvent();
-    } else if (this.tickCount % 1500 === 0) {
-      this.eventsManager.triggerRandomTownGossip();
+    } else if (Math.random() < 0.00003) {
+      // Ultra-rare Peaceful Death & Funeral Event
+      this.eventsManager.triggerDeathAndFuneralEvent();
     }
 
     if (this.camera2D) {
@@ -199,7 +201,6 @@ class ResidentLifeGame {
   render() {
     let timeInfo = this.getTimeInfo();
 
-    // Reset Frame Buffer for Non-overlapping Speech Bubbles
     window.SpeechBubbleRenderer.resetFrame();
 
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -251,7 +252,7 @@ class ResidentLifeGame {
     let icon = '☀️';
     if (hour >= 5 && hour < 9) { period = 'morning'; icon = '🌅'; }
     else if (hour >= 9 && hour < 17) { period = 'day'; icon = '☀️'; }
-    else if (hour >= 17 && hour < 20) { period = 'evening'; icon = '<ctrl42>'; }
+    else if (hour >= 17 && hour < 20) { period = 'evening'; icon = '🌆'; }
     else { period = 'night'; icon = '🌙'; }
 
     return { hour, minute, period, icon, timeStr: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` };
@@ -275,7 +276,7 @@ class ResidentLifeGame {
     let t = this.getTimeInfo();
     document.getElementById('clock-display').innerText = t.timeStr;
     document.getElementById('time-icon').innerText = t.icon;
-    document.getElementById('weather-text').innerText = t.period === 'night' ? '満天の星空 (2D Canvas)' : t.period === 'evening' ? 'きれいな夕焼け (2D Canvas)' : '爽やかな晴れ (2D Canvas)';
+    document.getElementById('weather-text').innerText = t.period === 'night' ? '満天の星空 (10倍超大マップ)' : t.period === 'evening' ? 'きれいな夕焼け' : '爽やかな晴れ';
   }
 
   updateFollowHUD() {

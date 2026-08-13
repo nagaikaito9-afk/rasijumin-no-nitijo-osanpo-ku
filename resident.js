@@ -1,5 +1,5 @@
 /**
- * resident.js - Resident AI with Pick-Up & Drop Grab Physics, Makeover System, & 500+ Dialogues
+ * resident.js - Resident AI with Emotional Memory Trauma System & God's Water Prank Reaction
  */
 
 class Resident {
@@ -26,8 +26,11 @@ class Resident {
     this.path = [];
     this.currentPathIndex = 0;
 
-    // Grab & Pick-Up State (Mouse Carry)
+    // Grab & Carry Physics
     this.isBeingCarried = false;
+
+    // Emotional Memory System (Trauma, Grudges, Memories)
+    this.memories = []; // [{ key: 'trauma_water', title: '...', timer: 1800 }]
 
     this.expression = 'normal';
     this.expressionTimer = 0;
@@ -65,7 +68,17 @@ class Resident {
     if (this.logs.length > 25) this.logs.pop();
   }
 
-  // --- MOUSE GRAB & MOVE PHYSICS (PICK UP & DROP) ---
+  addMemory(key, title, durationFrames = 2400) {
+    this.memories = this.memories.filter(m => m.key !== key);
+    this.memories.unshift({ key: key, title: title, timer: durationFrames });
+    if (this.memories.length > 6) this.memories.pop();
+  }
+
+  getMemory(key) {
+    return this.memories.find(m => m.key === key && m.timer > 0);
+  }
+
+  // --- MOUSE GRAB & DROP WITH WATER PRANK REACTION ---
   pickup() {
     this.isBeingCarried = true;
     this.setExpression('surprised', 9999);
@@ -74,26 +87,51 @@ class Resident {
     this.addLog('神様の手につままれて空中へピックアップされました！');
   }
 
-  dropAt(tx, ty) {
+  dropAt(tx, ty, world, addGlobalTicker) {
     this.isBeingCarried = false;
     this.x = tx;
     this.y = ty;
     this.path = [];
     this.currentPathIndex = 0;
-    this.setExpression('smile', 250);
 
-    const dropLines = [
-      "着地～！ふわっと着地できた！びっくりした～！",
-      "神様、ここへ運んでくれてありがとう！",
-      "わーい！一瞬で遠くまで移動できちゃった！"
-    ];
-    let line = dropLines[Math.floor(Math.random() * dropLines.length)];
-    this.say(line, 260);
+    let gx = Math.floor(tx / world.tileSize);
+    let gy = Math.floor(ty / world.tileSize);
+    let tileType = (world.grid[gy] && world.grid[gy][gx]) ? world.grid[gy][gx] : 0;
+
+    // CHECK IF DROPPED INTO WATER (Pond, Ocean, Lake) -> GOD'S PRANK REACTION!
+    if (tileType === 2 && !(gy === 46 && gx >= 48 && gx <= 62)) {
+      this.setExpression('wet', 450);
+      this.mood = 'シクシク'; this.moodIcon = '😭';
+      this.happiness = Math.max(0, this.happiness - 40);
+
+      const prankLines = [
+        "ひやぁぁぁ！神様の手で意地悪された～！！水の中に落とされたよ～！😭💦",
+        "意地悪な神様～！お洋服がびしょ濡れになっちゃったよぉ(涙)",
+        "バシャーン！神様の意地悪ドロップだぁ～！冷たいよ～！💦"
+      ];
+      let line = prankLines[Math.floor(Math.random() * prankLines.length)];
+      this.say(line, 320);
+
+      let logMsg = `😭 【神様の意地悪】${this.name}が神様の手で水の中に投げ落とされ、ずぶ濡れ大泣きになりました！`;
+      this.addLog(logMsg);
+      if (addGlobalTicker) addGlobalTicker('💦', logMsg);
+
+      this.addMemory('trauma_water', '神様の手で水の中に落とされたトラウマ');
+      this.currentAction = '神様の意地悪で水に落とされ涙目になっている';
+
+      let home = world.houses.find(h => h.id === this.homeHouseId);
+      if (home) this.navigateTo(world, home.door.x, home.door.y);
+      return;
+    }
+
+    // Normal Ground Drop
+    this.setExpression('smile', 250);
+    this.say('着地～！神様、運んでくれてありがとう！', 260);
+    this.addMemory('god_carried', '神様の手で空を飛んだ思い出');
     this.currentAction = '無事着地して周囲を見渡している';
     this.addLog(`新しい場所 (${Math.floor(tx)}, ${Math.floor(ty)}) に安全着地しました！`);
   }
 
-  // --- MAKEOVER EVENT (美容室イメチェン) ---
   applyMakeover(addGlobalTicker) {
     const hairStyles = ['short', 'twintail', 'spiky', 'ponytail', 'bob', 'afro'];
     const hairColors = ['#1e293b', '#dc2626', '#d97706', '#eab308', '#059669', '#0284c7', '#7c3aed', '#db2777'];
@@ -113,56 +151,13 @@ class Resident {
     if (addGlobalTicker) addGlobalTicker('✂️', msg);
   }
 
-  updateMood() {
-    const moods = window.TomodachiDialogues.moods;
-    if (this.hunger < 20) { this.mood = 'お腹ペコペコ'; this.moodIcon = '🍚'; }
-    else if (this.energy < 20) { this.mood = '眠気全開'; this.moodIcon = '💤'; }
-    else if (this.happiness > 90) { this.mood = '最高'; this.moodIcon = '🌟'; }
-    else if (this.happiness < 30) { this.mood = '落ち込み'; this.moodIcon = '😞'; }
-    else {
-      let m = moods[Math.floor(Math.random() * moods.length)];
-      this.mood = m.name; this.moodIcon = m.icon;
-    }
-  }
-
-  setExpression(expr, durationFrames = 200) {
-    this.expression = expr;
-    this.expressionTimer = durationFrames;
-  }
-
-  say(text, durationFrames = 220) {
-    this.speechText = text;
-    this.speechTimer = durationFrames;
-    this.thought = text;
-  }
-
-  sayDynamicDialogue(targetResident = null) {
-    let relTitle = targetResident ? this.getDetailedRelationshipTitle(targetResident.id, targetResident.name) : null;
-    let text = window.TomodachiDialogues.generateDialogue(this, targetResident, relTitle);
-    this.say(text, 240);
-  }
-
-  getRelationship(otherId) {
-    if (!this.relationships[otherId]) {
-      this.relationships[otherId] = { friendship: 25 + Math.random() * 20, romance: 0, status: 'friend' };
-    }
-    return this.relationships[otherId];
-  }
-
-  getDetailedRelationshipTitle(otherId, otherName) {
-    let rel = this.getRelationship(otherId);
-    if (rel.status === 'married') return `💍 夫/妻 (人生の伴侶): ${otherName}`;
-    if (rel.status === 'couple') return `💕 恋人 (彼氏/彼女): ${otherName}`;
-    if (rel.friendship > 85) return `✨ 大親友 (心の友): ${otherName}`;
-    if (rel.friendship > 75) return `🤝 親友 (信頼できる味方): ${otherName}`;
-    if (rel.friendship > 65) return `☕ 幼馴染 (腐れ縁): ${otherName}`;
-    if (rel.romance > 75) return `💘 一方的な片思い中: ${otherName}`;
-    return `🌱 ご近所さん (知人): ${otherName}`;
-  }
-
   update(world, timeInfo, residents, addGlobalTicker, playSound) {
-    // If being carried by mouse grab, skip regular movement AI
     if (this.isBeingCarried) return;
+
+    // Decay Memory Timers
+    for (let m of this.memories) {
+      if (m.timer > 0) m.timer--;
+    }
 
     if (this.expressionTimer > 0) {
       this.expressionTimer--;
@@ -178,7 +173,7 @@ class Resident {
     this.energy = Math.max(0, this.isSleeping ? this.energy + 0.14 : this.energy - 0.01);
     this.social = Math.max(0, this.social - 0.008);
 
-    // --- SEPARATION PHYSICS: PREVENT RESIDENTS FROM OVERLAPPING ---
+    // Separation Force
     for (let other of residents) {
       if (other.id !== this.id && !this.inBed && !other.inBed && !this.isBeingCarried && !other.isBeingCarried) {
         let dx = this.x - other.x;
@@ -212,13 +207,6 @@ class Resident {
         this.x += (dx / dist) * this.speed;
         this.y += (dy / dist) * this.speed;
       }
-
-      let currentGridX = Math.floor(this.x / world.tileSize);
-      let currentGridY = Math.floor(this.y / world.tileSize);
-      if (world.grid[currentGridY] && world.grid[currentGridY][currentGridX] === 2 && currentGridY !== 24) {
-        this.triggerPondAccident(world, addGlobalTicker, playSound);
-      }
-
     } else {
       this.activityTimer++;
       if (this.activityTimer > 180) {
@@ -226,72 +214,30 @@ class Resident {
         this.decideNextActivity(world, timeInfo, residents, addGlobalTicker, playSound);
       }
     }
-
-    if (Math.random() < 0.03 && !this.isSleeping) {
-      for (let other of residents) {
-        if (other.id !== this.id && !other.isSleeping && !other.isBeingCarried) {
-          let dist = Math.hypot(other.x - this.x, other.y - this.y);
-          if (dist < 40) {
-            this.handleSocialInteraction(other, world, addGlobalTicker, playSound);
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  triggerPondAccident(world, addGlobalTicker, playSound) {
-    if (this.expression === 'wet') return;
-    this.setExpression('wet', 350);
-    this.say('冷たぁぁい！池にドボンしちゃった！！💦', 260);
-    this.happiness = Math.max(0, this.happiness - 30);
-    let logMsg = `${this.name}が足を滑らせて池に落っこちました！ずぶ濡れ涙目に…`;
-    this.addLog(logMsg);
-    if (addGlobalTicker) addGlobalTicker('💦', logMsg);
-    if (playSound) playSound('pop');
-
-    let home = world.houses.find(h => h.id === this.homeHouseId);
-    if (home) this.navigateTo(world, home.door.x, home.door.y);
-  }
-
-  handleSocialInteraction(other, world, addGlobalTicker, playSound) {
-    if (this.expressionTimer > 60) return;
-
-    let rel = this.getRelationship(other.id);
-    let otherRel = other.getRelationship(this.id);
-    let rnd = Math.random();
-
-    this.setExpression('smile', 160); other.setExpression('smile', 160);
-    this.sayDynamicDialogue(other);
   }
 
   decideNextActivity(world, timeInfo, residents, addGlobalTicker, playSound) {
-    let hour = timeInfo.hour;
-    let home = world.houses.find(h => h.id === this.homeHouseId);
-
-    if (hour >= 21 || hour < 6) {
-      if (!this.isSleeping && home) {
-        let ts = world.tileSize;
-        this.targetX = home.x * ts + 36;
-        this.targetY = home.y * ts + 30;
-        this.path = [{ x: Math.floor(this.targetX / ts), y: Math.floor(this.targetY / ts) }];
-        this.currentAction = 'おうちのベッドで就寝中';
-        this.say('すやすや…Zzz…', 300);
-        this.isSleeping = true; this.inBed = true;
-        this.setExpression('sleeping', 99999);
-      }
+    // Check Emotional Trauma / Memory Reactions!
+    let waterTrauma = this.getMemory('trauma_water');
+    if (waterTrauma && Math.random() < 0.4) {
+      this.setExpression('wet', 200);
+      this.say('水がトラウマになっちゃった…まだブルブル震えちゃうよ💦', 240);
       return;
-    } else {
-      this.isSleeping = false; this.inBed = false;
-      if (this.expression === 'sleeping') this.setExpression('normal');
+    }
+
+    let heartbreak = this.getMemory('heartbreak');
+    if (heartbreak && Math.random() < 0.4) {
+      this.setExpression('crying', 200);
+      this.say('振られた傷がまだ痛むんだ…シクシク(涙)', 240);
+      return;
     }
 
     const outdoor = [
       { key: 'park', action: '公園の噴水を眺める', expr: 'smile' },
-      { key: 'bench_1', action: 'ベンチで読書', expr: 'smile' },
-      { key: 'pond', action: 'アヒル池を観察', expr: 'smile' },
-      { key: 'cafe', action: 'カフェで焼きたてパンを味わう', expr: 'eating' },
-      { key: 'garden', action: '農園で野菜のお手入れ', expr: 'normal' }
+      { key: 'beach', action: '🌊 渚のリゾートで海水浴＆日光浴', expr: 'smile' },
+      { key: 'camp', action: '🌲 キャンプ場でバーベキュー準備', expr: 'smile' },
+      { key: 'lake', action: '⛵ 碧の湖畔でスワンボートを鑑賞', expr: 'normal' },
+      { key: 'cemetery', action: '🌸 桜並木メモリアル霊園でお祈り 🪦', expr: 'normal' }
     ];
 
     let choice = outdoor[Math.floor(Math.random() * outdoor.length)];
@@ -303,6 +249,28 @@ class Resident {
       this.sayDynamicDialogue();
       if (choice.expr === 'smile') this.setExpression('smile', 180);
     }
+  }
+
+  sayDynamicDialogue(targetResident = null) {
+    let relTitle = targetResident ? this.getDetailedRelationshipTitle(targetResident.id, targetResident.name) : null;
+    let text = window.TomodachiDialogues.generateDialogue(this, targetResident, relTitle);
+    this.say(text, 240);
+  }
+
+  getRelationship(otherId) {
+    if (!this.relationships[otherId]) {
+      this.relationships[otherId] = { friendship: 25 + Math.random() * 20, romance: 0, status: 'friend' };
+    }
+    return this.relationships[otherId];
+  }
+
+  getDetailedRelationshipTitle(otherId, otherName) {
+    let rel = this.getRelationship(otherId);
+    if (rel.status === 'married') return `💍 夫/妻 (人生の伴侶): ${otherName}`;
+    if (rel.status === 'couple') return `💕 恋人 (彼氏/彼女): ${otherName}`;
+    if (rel.friendship > 85) return `✨ 大親友 (心の友): ${otherName}`;
+    if (rel.friendship > 75) return `🤝 親友 (信頼できる味方): ${otherName}`;
+    return `🌱 ご近所さん (知人): ${otherName}`;
   }
 
   navigateTo(world, tx, ty) {

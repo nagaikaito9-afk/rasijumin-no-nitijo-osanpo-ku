@@ -1,12 +1,12 @@
 /**
- * world_render.js - World Grid, Terrain, Large Houses & Detailed Interior Room Renderer
+ * world_render.js - 160x120 Massive Map Renderer (Ocean, Sand Beach, Lake, BBQ Camp, Cemetery)
  */
 
 window.WorldRenderer = {
   render(ctx, world, timeOfDay, tickCount, selectedHouseId) {
     const ts = world.tileSize;
 
-    // 1. Terrain Grid
+    // Viewport Clipping Bounds Optimization
     for (let r = 0; r < world.rows; r++) {
       for (let c = 0; c < world.cols; c++) {
         let x = c * ts;
@@ -19,28 +19,33 @@ window.WorldRenderer = {
         } else if (tile === 1) {
           ctx.fillStyle = '#e2e8f0';
           ctx.fillRect(x, y, ts, ts);
-          ctx.strokeStyle = '#cbd5e1';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x + 2, y + 2, ts - 4, ts - 4);
+          ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1; ctx.strokeRect(x + 2, y + 2, ts - 4, ts - 4);
         } else if (tile === 2) {
+          // Ocean & Lake Waves
           let wave = Math.sin(tickCount * 0.05 + c + r) * 2;
-          ctx.fillStyle = '#38bdf8';
+          ctx.fillStyle = '#0284c7';
           ctx.fillRect(x, y, ts, ts);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
           ctx.fillRect(x + 4 + wave, y + 8, ts - 12, 3);
+        } else if (tile === 3) {
+          // Sand Beach
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(x, y, ts, ts);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(x + 4, y + 4, 3, 3);
         }
       }
     }
 
-    // Wooden Bridge
-    for (let c = 16; c <= 21; c++) {
-      ctx.fillStyle = '#78350f'; ctx.fillRect(c * ts, 24 * ts + 4, ts, ts - 8);
-      ctx.strokeStyle = '#451a03'; ctx.strokeRect(c * ts, 24 * ts + 4, ts, ts - 8);
+    // Wooden Bridges
+    for (let c = 48; c <= 62; c++) {
+      ctx.fillStyle = '#78350f'; ctx.fillRect(c * ts, 46 * ts + 4, ts, ts - 8);
+      ctx.strokeStyle = '#451a03'; ctx.strokeRect(c * ts, 46 * ts + 4, ts, ts - 8);
     }
 
-    // Swimming Duck
-    let duckX = 18 * ts + Math.cos(tickCount * 0.03) * 35;
-    let duckY = 25 * ts + Math.sin(tickCount * 0.03) * 20;
+    // Swimming Ducks in Pond
+    let duckX = 52 * ts + Math.cos(tickCount * 0.03) * 35;
+    let duckY = 49 * ts + Math.sin(tickCount * 0.03) * 20;
     ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(duckX, duckY, 7, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#f97316'; ctx.fillRect(duckX + 5, duckY - 2, 4, 3);
 
@@ -50,7 +55,7 @@ window.WorldRenderer = {
       this.renderLargeHouse(ctx, h, isOpened, timeOfDay, tickCount, ts);
     }
 
-    // 3. Landmarks & Trees
+    // 3. Regional Landmarks & Cemetery
     this.renderLandmarks(ctx, world, timeOfDay, tickCount);
   },
 
@@ -63,20 +68,13 @@ window.WorldRenderer = {
     if (h.status === 'under_construction') {
       ctx.fillStyle = '#d97706'; ctx.fillRect(hx, hy, hw, hh);
       ctx.strokeStyle = '#451a03'; ctx.lineWidth = 3; ctx.strokeRect(hx, hy, hw, hh);
-      ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + hw, hy + hh); ctx.moveTo(hx + hw, hy); ctx.lineTo(hx, hy + hh); ctx.stroke();
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif'; ctx.fillText('🏗️ 新築リフォーム工事中...', hx + 12, hy + hh / 2);
       return;
     }
 
     if (openInterior) {
-      // --- INTERIOR ROOM VIEW ---
       ctx.fillStyle = '#fef3c7'; ctx.fillRect(hx, hy, hw, hh);
       ctx.strokeStyle = '#d97706'; ctx.lineWidth = 3; ctx.strokeRect(hx, hy, hw, hh);
-
-      // Rug
-      ctx.fillStyle = '#f43f5e';
-      ctx.beginPath(); ctx.ellipse(hx + hw / 2, hy + hh / 2 + 10, 45, 24, 0, 0, Math.PI * 2); ctx.fill();
 
       // Bed 🛌
       ctx.fillStyle = '#cbd5e1'; ctx.fillRect(hx + 10, hy + 10, 52, 38);
@@ -85,25 +83,12 @@ window.WorldRenderer = {
 
       // Fireplace 🔥
       ctx.fillStyle = '#78350f'; ctx.fillRect(hx + hw - 48, hy + 6, 40, 28);
-      ctx.fillStyle = '#451a03'; ctx.fillRect(hx + hw - 40, hy + 14, 24, 20);
       let fSize = 6 + Math.sin(tickCount * 0.3) * 3;
       ctx.fillStyle = '#ea580c'; ctx.beginPath(); ctx.arc(hx + hw - 28, hy + 26, fSize, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(hx + hw - 28, hy + 26, fSize * 0.6, 0, Math.PI * 2); ctx.fill();
 
       // Kitchen 🍳
       ctx.fillStyle = '#475569'; ctx.fillRect(hx + 10, hy + hh - 45, 48, 35);
       ctx.fillStyle = '#0f172a'; ctx.fillRect(hx + 14, hy + hh - 40, 20, 16);
-      ctx.fillStyle = '#94a3b8'; ctx.fillRect(hx + 18, hy + hh - 36, 12, 10);
-      let sY = hy + hh - 42 - ((tickCount * 0.3) % 10);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.beginPath(); ctx.arc(hx + 24, sY, 3, 0, Math.PI * 2); ctx.fill();
-
-      // Dining 🍽️
-      ctx.fillStyle = '#92400e'; ctx.fillRect(hx + hw - 56, hy + hh - 48, 46, 32);
-
-      // Sofa & TV 📺
-      ctx.fillStyle = '#2563eb'; ctx.fillRect(hx + hw / 2 - 25, hy + hh / 2 - 25, 50, 20);
-      ctx.fillStyle = '#0f172a'; ctx.fillRect(hx + hw / 2 - 20, hy + 8, 40, 16);
-      ctx.fillStyle = tickCount % 20 < 10 ? '#38bdf8' : '#e11d48'; ctx.fillRect(hx + hw / 2 - 18, hy + 10, 36, 12);
 
       // Open Roof Tag
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.fillRect(hx, hy - 20, 140, 18);
@@ -111,43 +96,46 @@ window.WorldRenderer = {
       ctx.fillText(`🔍 室内観察: ${h.name}`, hx + 6, hy - 6);
 
     } else {
-      // --- EXTERIOR HOUSE VIEW ---
       ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(hx + 6, hy + 6, hw, hh);
       ctx.fillStyle = '#f8fafc'; ctx.fillRect(hx, hy + 20, hw, hh - 20);
-
       ctx.fillStyle = h.color;
       ctx.beginPath(); ctx.moveTo(hx - 10, hy + 22); ctx.lineTo(hx + hw / 2, hy - 18); ctx.lineTo(hx + hw + 10, hy + 22); ctx.closePath(); ctx.fill();
-
-      let dx = h.door.x * ts;
-      ctx.fillStyle = '#78350f'; ctx.fillRect(dx - 10, hy + hh - 28, 20, 28);
-
-      let isNight = timeOfDay === 'night' || timeOfDay === 'evening';
-      ctx.fillStyle = isNight ? '#fef08a' : '#93c5fd';
-      ctx.fillRect(hx + 14, hy + 32, 22, 20); ctx.fillRect(hx + hw - 36, hy + 32, 22, 20);
     }
   },
 
   renderLandmarks(ctx, world, timeOfDay, tickCount) {
     const ts = world.tileSize;
 
+    // 🌊 Beach Resort Umbrella & Watermelon
+    let bx = 136 * ts;
+    let by = 50 * ts;
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(bx + 16, by + 16, 20, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#15803d'; ctx.beginPath(); ctx.arc(bx + 40, by + 20, 8, 0, Math.PI * 2); ctx.fill(); // Watermelon 🍉
+
+    // 🍖 BBQ Camp Grill
+    let cx = 100 * ts;
+    let cy = 75 * ts;
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(cx + 8, cy + 8, 32, 20);
+    ctx.fillStyle = '#ea580c'; ctx.fillRect(cx + 12, cy + 12, 24, 12);
+    ctx.fillStyle = '#78350f'; ctx.fillRect(cx - 30, cy - 10, 24, 30); // Camp Tent ⛺
+
+    // 🪦 Cemetery Tombstones & Cherry Blossoms
+    let cmx = 25 * ts;
+    let cmy = 95 * ts;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = '#64748b'; ctx.fillRect(cmx + i * 28, cmy, 16, 24);
+      ctx.fillStyle = '#94a3b8'; ctx.fillText('🪦', cmx + i * 28 + 1, cmy + 16);
+    }
+    // Cherry Blossom Tree 🌸
+    ctx.fillStyle = '#f472b6'; ctx.beginPath(); ctx.arc(cmx + 120, cmy - 10, 22, 0, Math.PI * 2); ctx.fill();
+
     // Fountain Park
-    let fx = 27 * ts;
-    let fy = 19 * ts;
+    let fx = 55 * ts;
+    let fy = 35 * ts;
     ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(fx + 16, fy + 16, 26, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(fx + 16, fy + 16, 20, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    let waterR = 6 + Math.sin(tickCount * 0.2) * 3;
-    ctx.beginPath(); ctx.arc(fx + 16, fy + 16, waterR, 0, Math.PI * 2); ctx.fill();
 
-    // Campfire
-    let cx = 45 * ts;
-    let cy = 24 * ts;
-    ctx.fillStyle = '#78350f'; ctx.fillRect(cx + 4, cy + 10, 24, 12);
-    let fireR = 5 + Math.sin(tickCount * 0.4) * 2;
-    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(cx + 16, cy + 12, fireR, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(cx + 16, cy + 12, fireR * 0.5, 0, Math.PI * 2); ctx.fill();
-
-    // Trees & Flowers
+    // Trees
     if (world.decorations) {
       for (let dec of world.decorations) {
         let dx = dec.x * ts;
@@ -155,7 +143,6 @@ window.WorldRenderer = {
         if (dec.type === 'tree') {
           ctx.fillStyle = '#78350f'; ctx.fillRect(dx + 12, dy + 16, 8, 14);
           ctx.fillStyle = '#15803d'; ctx.beginPath(); ctx.arc(dx + 16, dy + 14, 16, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(dx + 12, dy + 10, 10, 0, Math.PI * 2); ctx.fill();
         } else if (dec.type === 'flower') {
           ctx.fillStyle = dec.color || '#ff7675'; ctx.beginPath(); ctx.arc(dx + 16, dy + 16, 4, 0, Math.PI * 2); ctx.fill();
         }

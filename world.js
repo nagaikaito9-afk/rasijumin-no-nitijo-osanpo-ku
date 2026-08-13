@@ -1,16 +1,16 @@
 /**
- * world.js - Large Houses, Strict Solid Collision Obstacles (No walking on houses/trees), 3D World Specs
+ * world.js - 160x120 10x Massive Map (Beach Resort, BBQ Camp, Emerald Lake, Cemetery)
  */
 
 class World {
-  constructor(widthInTiles = 54, heightInTiles = 38, tileSize = 32) {
+  constructor(widthInTiles = 160, heightInTiles = 120, tileSize = 32) {
     this.cols = widthInTiles;
     this.rows = heightInTiles;
     this.tileSize = tileSize;
     this.width = this.cols * this.tileSize;
     this.height = this.rows * this.tileSize;
 
-    // Tile Types: 0: Grass, 1: Road, 2: Water, 4: Solid Obstacle (House/Tree/Wall)
+    // Tile Types: 0: Grass, 1: Road, 2: Water (Strict Solid for walking), 3: Sand Beach, 4: Solid Obstacle
     this.grid = [];
     this.landmarks = {};
     this.houses = [];
@@ -23,58 +23,80 @@ class World {
     for (let r = 0; r < this.rows; r++) {
       this.grid[r] = [];
       for (let c = 0; c < this.cols; c++) {
-        this.grid[r][c] = 0;
+        this.grid[r][c] = 0; // Default Grass
       }
     }
 
-    // Cobblestone Roads (1)
-    for (let c = 4; c < 50; c++) this.grid[19][c] = 1;
-    for (let c = 4; c < 50; c++) this.grid[8][c] = 1;
-    for (let c = 4; c < 50; c++) this.grid[30][c] = 1;
+    // 1. Cobblestone & Wooden Road Network
+    for (let c = 10; c < 150; c++) {
+      this.grid[30][c] = 1;
+      this.grid[60][c] = 1;
+      this.grid[90][c] = 1;
+    }
+    for (let r = 10; r < 110; r++) {
+      this.grid[r][30] = 1;
+      this.grid[r][80] = 1;
+      this.grid[r][130] = 1;
+    }
 
-    for (let r = 4; r < 34; r++) this.grid[r][10] = 1;
-    for (let r = 4; r < 34; r++) this.grid[r][27] = 1;
-    for (let r = 4; r < 34; r++) this.grid[r][44] = 1;
+    // 2. 🌊 Ocean & Sand Beach Resort (Right & Bottom Coastline)
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 142; c < this.cols; c++) {
+        this.grid[r][c] = 2; // Deep Ocean Water
+      }
+    }
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 132; c <= 141; c++) {
+        this.grid[r][c] = 3; // Sand Beach
+      }
+    }
 
-    // Water Pond (2) & Bridge
-    for (let r = 21; r <= 27; r++) {
-      for (let c = 14; c <= 23; c++) {
+    // 3. ⛵ Emerald Lake (Upper Right Region)
+    for (let r = 10; r <= 25; r++) {
+      for (let c = 90; c <= 118; c++) {
+        this.grid[r][c] = 2; // Lake Water
+      }
+    }
+
+    // 4. ⛲ Park Duck Pond
+    for (let r = 40; r <= 52; r++) {
+      for (let c = 45; c <= 65; c++) {
         this.grid[r][c] = 2;
       }
     }
-    for (let c = 16; c <= 21; c++) this.grid[24][c] = 1; // Wooden Bridge
+    for (let c = 48; c <= 62; c++) this.grid[46][c] = 1; // Wooden Bridge
 
-    // Define 6 LARGE Residential Houses (6x4 tiles)
+    // 5. 6 Large Houses (6x4 tiles)
     this.houses = [
-      { id: 'h1', name: 'サンシャイン邸 A', x: 3, y: 3, w: 6, h: 4, door: { x: 6, y: 7 }, color: '#38bdf8', status: 'normal', residents: [] },
-      { id: 'h2', name: 'ローズガーデン邸 B', x: 12, y: 3, w: 6, h: 4, door: { x: 15, y: 7 }, color: '#f43f5e', status: 'normal', residents: [] },
-      { id: 'h3', name: 'フォレストヒルズ 1', x: 30, y: 3, w: 6, h: 4, door: { x: 33, y: 7 }, color: '#eab308', status: 'normal', residents: [] },
-      { id: 'h4', name: 'フォレストヒルズ 2', x: 3, y: 13, w: 6, h: 4, door: { x: 6, y: 17 }, color: '#10b981', status: 'normal', residents: [] },
-      { id: 'h5', name: 'スターライトヴィラ 1', x: 30, y: 13, w: 6, h: 4, door: { x: 33, y: 17 }, color: '#a855f7', status: 'normal', residents: [] },
-      { id: 'h6', name: 'スターライトヴィラ 2', x: 3, y: 24, w: 6, h: 4, door: { x: 6, y: 28 }, color: '#06b6d4', status: 'normal', residents: [] }
+      { id: 'h1', name: 'サンシャイン邸 A', x: 12, y: 12, w: 6, h: 4, door: { x: 15, y: 16 }, color: '#38bdf8', status: 'normal', residents: [] },
+      { id: 'h2', name: 'ローズガーデン邸 B', x: 42, y: 12, w: 6, h: 4, door: { x: 45, y: 16 }, color: '#f43f5e', status: 'normal', residents: [] },
+      { id: 'h3', name: 'フォレストヒルズ 1', x: 12, y: 42, w: 6, h: 4, door: { x: 15, y: 46 }, color: '#eab308', status: 'normal', residents: [] },
+      { id: 'h4', name: 'フォレストヒルズ 2', x: 42, y: 42, w: 6, h: 4, door: { x: 45, y: 46 }, color: '#10b981', status: 'normal', residents: [] },
+      { id: 'h5', name: 'スターライトヴィラ 1', x: 12, y: 72, w: 6, h: 4, door: { x: 15, y: 76 }, color: '#a855f7', status: 'normal', residents: [] },
+      { id: 'h6', name: 'スターライトヴィラ 2', x: 42, y: 72, w: 6, h: 4, door: { x: 45, y: 76 }, color: '#06b6d4', status: 'normal', residents: [] }
     ];
 
-    // MARK HOUSES AS SOLID OBSTACLES (4) EXCEPT DOORS! (Strict Collision Prevention)
+    // Mark Houses as Solid Obstacles (4)
     for (let h of this.houses) {
       for (let r = h.y; r < h.y + h.h; r++) {
         for (let c = h.x; c < h.x + h.w; c++) {
-          this.grid[r][c] = 4; // Solid obstacle
+          this.grid[r][c] = 4;
         }
       }
     }
 
-    // Landmarks
+    // 6. Regional Landmarks
     this.landmarks = {
-      cafe: { x: 13, y: 11, target: { x: 15, y: 14 }, name: '森のカフェ & ベーカリー' },
-      chapel: { x: 45, y: 3, target: { x: 47, y: 7 }, name: '愛のウェディング教会 ⛪' },
-      park: { x: 27, y: 19, target: { x: 27, y: 19 }, name: '中央公園の大噴水' },
-      fountain: { x: 27, y: 19, target: { x: 27, y: 20 } },
-      bench_1: { x: 25, y: 18, target: { x: 25, y: 18 }, name: '公園のウッドベンチ' },
-      bench_2: { x: 29, y: 18, target: { x: 29, y: 18 }, name: '木もれ日ベンチ' },
-      pond: { x: 18, y: 24, target: { x: 15, y: 24 }, name: 'アヒル池 (足元注意！)' },
-      campfire: { x: 45, y: 24, target: { x: 45, y: 26 }, name: '夜の焚き火広場' },
-      garden: { x: 45, y: 13, target: { x: 44, y: 13 }, name: 'コミュニティ農園' },
-      library: { x: 30, y: 24, target: { x: 32, y: 24 }, name: '青空ライブラリー' }
+      cafe: { x: 35, y: 35, target: { x: 35, y: 36 }, name: '森のカフェ & ベーカリー' },
+      chapel: { x: 10, y: 95, target: { x: 12, y: 98 }, name: '愛のウェディング教会 ⛪' },
+      cemetery: { x: 25, y: 95, target: { x: 28, y: 98 }, name: '🌸 桜並木メモリアル霊園 🪦' },
+      park: { x: 55, y: 35, target: { x: 55, y: 35 }, name: '中央公園の大噴水 ⛲' },
+      fountain: { x: 55, y: 35, target: { x: 55, y: 36 } },
+      bench_1: { x: 50, y: 34, target: { x: 50, y: 34 }, name: '公園のウッドベンチ' },
+      pond: { x: 50, y: 46, target: { x: 47, y: 46 }, name: 'アヒル池 (足元注意！)' },
+      beach: { x: 136, y: 50, target: { x: 136, y: 50 }, name: '🌊 渚の海水浴リゾート 🏖️' },
+      camp: { x: 100, y: 75, target: { x: 100, y: 75 }, name: '🌲 森林BBQキャンプ場 🥩' },
+      lake: { x: 105, y: 28, target: { x: 105, y: 28 }, name: '⛵ 碧の湖畔スワンボート' }
     };
 
     this.houses.forEach(h => {
@@ -88,8 +110,8 @@ class World {
     this.decorations = [];
     const seed = (x) => Math.sin(x * 777) * 10000 - Math.floor(Math.sin(x * 777) * 10000);
 
-    for (let r = 1; r < this.rows - 1; r++) {
-      for (let c = 1; c < this.cols - 1; c++) {
+    for (let r = 2; r < this.rows - 2; r++) {
+      for (let c = 2; c < this.cols - 2; c++) {
         if (this.grid[r][c] === 0) {
           let occupied = false;
           for (let h of this.houses) {
@@ -97,11 +119,11 @@ class World {
               occupied = true; break;
             }
           }
-          let rnd = seed(r * 50 + c);
-          if (!occupied && rnd > 0.86) {
+          let rnd = seed(r * 160 + c);
+          if (!occupied && rnd > 0.88) {
             this.decorations.push({ x: c, y: r, type: 'tree', variant: Math.floor(rnd * 3) });
-            this.grid[r][c] = 4; // Mark tree as solid obstacle!
-          } else if (!occupied && rnd > 0.65) {
+            this.grid[r][c] = 4; // Solid tree obstacle!
+          } else if (!occupied && rnd > 0.72) {
             this.decorations.push({ x: c, y: r, type: 'flower', color: rnd > 0.8 ? '#ff7675' : '#ffeaa7' });
           }
         }
@@ -134,11 +156,11 @@ class World {
 
       for (let n of neighbors) {
         if (n.x >= 0 && n.x < this.cols && n.y >= 0 && n.y < this.rows) {
-          // Strictly avoid water (2) and solid obstacle walls/trees (4) unless targeting destination!
+          // STRICT WATER & SOLID OBSTACLE COLLISION PREVENTION (Residents NEVER walk on water!)
           let isSolid = this.grid[n.y][n.x] === 4;
-          let isWater = this.grid[n.y][n.x] === 2 && n.y !== 24;
+          let isWater = this.grid[n.y][n.x] === 2 && !(n.y === 46 && n.x >= 48 && n.x <= 62); // Bridge allowed
 
-          if (!isSolid && !isWater || (n.x === tx && n.y === ty)) {
+          if (!isSolid && !isWater) {
             let key = `${n.x},${n.y}`;
             if (!visited.has(key)) {
               visited.add(key);
@@ -147,7 +169,7 @@ class World {
           }
         }
       }
-      if (visited.size > 1500) break;
+      if (visited.size > 2000) break;
     }
     return [{ x: sx, y: sy }, { x: tx, y: ty }];
   }
