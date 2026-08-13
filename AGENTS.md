@@ -45,19 +45,21 @@
   - 機嫌の状態や性格によって言うことが変わる。
   - 機嫌は20種類以上、関係は50種類以上。
 
-### 7. 第6回大型アプデ（今回）: 「重なり・侵入不可コリジョン修正 & 超大型3D WebGL化」
+### 7. 第6回アプデ: 「2D高精細キャンバス & GitHub連携 & 衝突物理修正」
 - **要望**:
   - 住民が重なったり木や家の上を歩いたりしないようにして。
-  - 大型アップデートを実行して顔はそのままで3Dに大幅変更し、より分かりやすくして。
+  - やっぱり2Dにして。
+  - 次からは毎回GitでGitHubにコミットして。
+    - ユーザー名: `nagaikaito9-afk`
+    - リポジトリ: `https://github.com/nagaikaito9-afk/rasijumin-no-nitijo-osanpo-ku.git`
 - **改修内容**:
-  - **衝突・重なり防止（コリジョン物理）**:
-    - 6×4の大型住宅、木々、アヒル池を進入不可（Solid = 4）マスに設定し、経路探索と歩行で絶対に家や木の上を通らないように厳密化。
-    - 住民同士が接近した際、互いに押し返す分離力（Separation Force）を適用し、住民同士の重なりを防止！
-  - **Three.js WebGL 本格3Dグラフィックエンジン**:
-    - `js_engine/three_renderer.js` を追加。3D地形、3D大型住宅、3D家具（ベッド、暖炉、キッチン、テレビ）、3Dアバターメッシュを構築。
-    - 太陽光シャドウ（リアルタイムの影）と時間帯（朝・昼・夕方・夜）に応じた3Dライティング表現。
-    - 愛らしい顔立ち・表情アニメーション Canvas を、3Dアバターの頭部テクスチャとしてリアルタイムマッピング！
-    - 360°カメラドラッグ回転・ズームイン/アウト・3D住民追跡。
+  - **高精細 2D Canvas レンダラー**:
+    - ブラウザ拡張エラーの影響を受けない、超高速で鮮明な HTML5 Canvas 2D描画エンジンへリファクタリング！
+    - 屋根オープンによる室内観察（ベッド 🛌、暖炉 🔥、キッチン 🍳、テレビ 📺）、ベクター描画の表情（笑顔、泣き顔、怒り顔、メロメロ、吹き出し会話）、アヒル池、大噴水。
+  - **衝突判定・重なり防止 (Separation Physics)**:
+    - 家・木を進入不可エリアに設定し、住民同士が重ならない分離ベクトルを適用！
+  - **GitHub コミット & プッシュの全自動統合**:
+    - リポジトリ `nagaikaito9-afk/rasijumin-no-nitijo-osanpo-ku` へのコミット・プッシュを毎回完了。
 
 ---
 
@@ -73,17 +75,17 @@
 7. `native_bridge.js` - C++ シミュレーションエンジン用JSブリッジ
 
 ### 📁 `js_engine/` (JS Graphics & Game Logic)
-8. `main.js` - ゲームループ＆統合制御
+8. `main.js` - 2D Canvas ゲームループ＆統合制御
 9. `world_render.js` - 街・大型住宅・室内インテリア描画
 10. `resident_render.js` - ベクター住民＆表情描画
-11. `three_renderer.js` - **[NEW] Three.js WebGL 3D 空間・ライティング・影・3Dオブジェクト描画エンジン**
-12. `dialogues_tomodachi.js` - 機嫌22種×性格×関係50種対応のセリフ生成DB
-13. `speech_bubble.js` - 画面上吹き出し描画システム
-14. `camera_system.js` - パン・ズーム・住民追跡カメラ
-15. `audio_synth.js` - Web Audio 効果音シンセサイザー
-16. `events_manager.js` - 街の噂、新築工事、恋愛イベント
-17. `inspector_ui.js` - 機嫌バッジ＆詳細関係50種UI表示
-18. `hobbies_system.js` - ギター・絵描き・釣り・夢システム
+11. `dialogues_tomodachi.js` - 機嫌22種×性格×関係50種対応のセリフ生成DB
+12. `speech_bubble.js` - 画面上吹き出し描画システム
+13. `camera_system.js` - パン・ズーム・住民追跡カメラ
+14. `audio_synth.js` - Web Audio 効果音シンセサイザー
+15. `events_manager.js` - 街の噂、新築工事、恋愛イベント
+16. `inspector_ui.js` - 機嫌バッジ＆詳細関係50種UI表示
+17. `hobbies_system.js` - ギター・絵描き・釣り・夢システム
+18. `three_renderer.js` - Three.js レンダラー（補助モジュール）
 
 ### 📁 `styles/` (Modular CSS)
 19. `main.css` - ベーステーマ＆リセット
@@ -99,4 +101,4 @@
 ## 📌 今後の開発ルール
 1. ユーザーへの返答は親しみやすい**友達口調**で行う。
 2. 完全放置ゲームのコンセプトを維持し、ユーザー干渉要素は追加しない。
-3. コードの変更や機能追加が行われた場合は本 `AGENTS.md` を更新する。
+3. コードの変更や機能追加が行われた場合は本 `AGENTS.md` を更新し、必ず Git で GitHub (`nagaikaito9-afk/rasijumin-no-nitijo-osanpo-ku`) にコミット & プッシュを行う。
