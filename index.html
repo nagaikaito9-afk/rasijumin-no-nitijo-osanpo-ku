@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住民の日常おさんぽ・ぐらし | 完全3D WebGL シミュレーション</title>
+  <meta name="description" content="Three.js WebGLによる完全3D空間で暮らす10人の住民たち。表情豊かなアバター、立体的な街、部屋のインテリア、リアルタイムな影。">
+  
+  <!-- Modular CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/hud.css">
+  <link rel="stylesheet" href="styles/inspector.css">
+
+  <!-- Three.js WebGL 3D Graphics Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <!-- Main Dedicated 3D WebGL Canvas -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+      <div class="brand-badge">
+        <h1>🏡 住民の日常おさんぽ・ぐらし</h1>
+        <span class="sub-tag">完全3D WebGL 版</span>
+      </div>
+
+      <div class="world-time-card">
+        <div class="time-display">
+          <span id="time-icon" class="time-icon">🌅</span>
+          <span id="clock-display">06:00</span>
+        </div>
+        <div class="weather-badge">
+          <span id="weather-text">爽やかな晴れ (完全3D WebGL)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Resident Camera Follow HUD -->
+    <div id="following-hud" class="following-hud hidden">
+      <span id="follow-name">太郎 をカメラ追跡中</span>
+      <button id="unfollow-btn" class="unfollow-btn">追跡解除 ✕</button>
+    </div>
+
+    <!-- Bottom Controls Floating Panel -->
+    <div class="bottom-controls">
+      <button id="sound-toggle" class="ctrl-btn">🔊 サウンド ON</button>
+    </div>
+
+    <!-- Resident Inspector Modal -->
+    <aside id="inspector-panel" class="inspector-panel hidden">
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <div class="avatar-preview">
+            <canvas id="avatar-canvas" width="40" height="40"></canvas>
+          </div>
+          <div>
+            <div id="inspector-name" class="resident-name">太郎</div>
+            <div id="inspector-personality" class="resident-personality">性別: 男性 | 性格: マイペース</div>
+          </div>
+        </div>
+        <button id="close-inspector" class="close-btn">✕</button>
+      </div>
+
+      <!-- Relationship Info -->
+      <div id="inspector-relationship" style="font-size: 0.8rem; color: var(--happy-color); font-weight: 700;">パートナーなし (独身)</div>
+
+      <!-- Current Thought Bubble -->
+      <div class="thought-bubble-box">
+        <div class="thought-label">💭 住民のつぶやき</div>
+        <div id="inspector-thought">「今日もいいお天気だな～」</div>
+        <div id="inspector-action" style="font-size: 0.78rem; color: var(--accent-color); margin-top: 6px;">現在の行動: のんびり過ごしている</div>
+      </div>
+
+      <!-- Need Status Meters -->
+      <div class="meters-grid">
+        <div class="meter-item">
+          <div class="meter-label"><span>🍚 お腹</span></div>
+          <div class="meter-bar-bg"><div id="meter-hunger" class="meter-bar-fill" style="width: 80%; background: #f97316;"></div></div>
+        </div>
+        <div class="meter-item">
+          <div class="meter-label"><span>⚡ スタミナ</span></div>
+          <div class="meter-bar-bg"><div id="meter-energy" class="meter-bar-fill" style="width: 90%; background: #38bdf8;"></div></div>
+        </div>
+        <div class="meter-item">
+          <div class="meter-label"><span>😊 ごきげん</span></div>
+          <div class="meter-bar-bg"><div id="meter-happiness" class="meter-bar-fill" style="width: 85%; background: #ff7675;"></div></div>
+        </div>
+        <div class="meter-item">
+          <div class="meter-label"><span>💬 なかよし</span></div>
+          <div class="meter-bar-bg"><div id="meter-social" class="meter-bar-fill" style="width: 70%; background: #a855f7;"></div></div>
+        </div>
+      </div>
+
+      <!-- Action & Event History Log -->
+      <div class="log-section">
+        <div class="section-title">📖 行動＆出来事ログ</div>
+        <div id="inspector-logs" class="log-list">
+          <div class="log-item"><span class="log-time">06:00</span>おうちで目を覚ましました。</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Event Ticker Drawer -->
+    <div class="event-ticker-panel" id="event-ticker"></div>
+  </div>
+
+  <!-- Native SIM Bridge -->
+  <script src="cpp_native/native_bridge.js"></script>
+
+  <!-- Legacy Support Scripts -->
+  <script src="world.js"></script>
+  <script src="resident.js"></script>
+
+  <!-- Modular JS Engine Modules -->
+  <script src="js_engine/dialogues_tomodachi.js"></script>
+  <script src="js_engine/speech_bubble.js"></script>
+  <script src="js_engine/audio_synth.js"></script>
+  <script src="js_engine/camera_system.js"></script>
+  <script src="js_engine/hobbies_system.js"></script>
+  <script src="js_engine/world_render.js"></script>
+  <script src="js_engine/resident_render.js"></script>
+  <script src="js_engine/three_renderer.js"></script>
+  <script src="js_engine/events_manager.js"></script>
+  <script src="js_engine/inspector_ui.js"></script>
+  <script src="js_engine/main.js"></script>
+</body>
+</html>
