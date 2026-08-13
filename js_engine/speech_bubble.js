@@ -1,45 +1,86 @@
 /**
- * speech_bubble.js - Overhead Canvas Speech Bubble Renderer
+ * speech_bubble.js - Non-Overlapping Speech Bubble System with Vertical Stacking Offset
  */
 
 window.SpeechBubbleRenderer = {
-  render(ctx, text, headY) {
-    if (!text) return;
+  activeBubbles: [],
 
-    ctx.font = 'bold 11px "Zen Maru Gothic", sans-serif';
-    let textWidth = ctx.measureText(text).width;
-    let bWidth = Math.max(60, textWidth + 18);
-    let bHeight = 22;
-    let bX = -bWidth / 2;
-    let bY = headY - 32;
+  resetFrame() {
+    this.activeBubbles = [];
+  },
 
-    // Glassy Bubble Background with Shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 6;
-    ctx.fillStyle = '#ffffff';
+  render(ctx, resident, tickCount) {
+    if (!resident.speechText || resident.speechTimer <= 0) return;
+
+    let rx = resident.x;
+    let ry = resident.y - 48; // Base position above resident head
+
+    // Calculate Vertical Stacking Offset to PREVENT BUBBLES FROM OVERLAPPING
+    let stackOffset = 0;
+    for (let b of this.activeBubbles) {
+      let dx = Math.abs(b.x - rx);
+      let dy = Math.abs(b.y - ry);
+      if (dx < 120 && dy < 40) {
+        stackOffset += 36; // Stack bubble higher
+      }
+    }
+
+    ry -= stackOffset;
+    this.activeBubbles.push({ x: rx, y: ry, residentId: resident.id });
+
+    // Draw Rounded Bubble Box
+    ctx.font = 'bold 12px "Zen Maru Gothic", sans-serif';
+    let textWidth = ctx.measureText(resident.speechText).width;
+    let paddingX = 14;
+    let paddingY = 8;
+    let bw = textWidth + paddingX * 2;
+    let bh = 28;
+    let bx = rx - bw / 2;
+    let by = ry - bh;
+
+    // Pulse animation
+    let scale = 1.0 + Math.sin(tickCount * 0.1) * 0.02;
+
+    ctx.save();
+    ctx.translate(rx, ry - bh / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-rx, -(ry - bh / 2));
+
+    // Bubble Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();
-    ctx.roundRect(bX, bY, bWidth, bHeight, 10);
+    ctx.roundRect(bx + 2, by + 3, bw, bh, 12);
     ctx.fill();
 
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Triangle Pointer
+    // Bubble Background
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.moveTo(-4, bY + bHeight);
-    ctx.lineTo(0, bY + bHeight + 5);
-    ctx.lineTo(4, bY + bHeight);
+    ctx.roundRect(bx, by, bw, bh, 12);
+    ctx.fill();
+
+    // Bubble Border
+    ctx.strokeStyle = resident.bodyColor || '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Pointer Triangle Tail
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(rx - 6, by + bh - 1);
+    ctx.lineTo(rx, by + bh + 7);
+    ctx.lineTo(rx + 6, by + bh - 1);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = resident.bodyColor || '#38bdf8';
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Text Label
+    // Text Content
     ctx.fillStyle = '#0f172a';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 0, bY + bHeight / 2);
+    ctx.fillText(resident.speechText, rx, by + bh / 2);
+
+    ctx.restore();
   }
 };

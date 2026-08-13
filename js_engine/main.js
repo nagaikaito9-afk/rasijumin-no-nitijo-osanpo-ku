@@ -1,5 +1,5 @@
 /**
- * main.js - Crisp 2D Canvas Main Game Controller
+ * main.js - 2D Canvas Main Game Loop with Mouse Grab & Drop Physics & Non-overlapping Speech Bubbles
  */
 
 class ResidentLifeGame {
@@ -14,6 +14,9 @@ class ResidentLifeGame {
     this.residents = [];
     this.selectedResident = null;
     this.selectedHouseId = null;
+
+    // Grab & Carry Physics State
+    this.grabbedResident = null;
 
     // 2D Camera Controller (Pan, Zoom, Follow)
     this.camera2D = new window.CameraSystem(this.canvas);
@@ -40,7 +43,7 @@ class ResidentLifeGame {
 
   initResidents() {
     this.residents = Resident.createRoster10(this.world.houses);
-    this.addTickerEvent('🏡', '10人の住民たちが自律生活をスタートしました！ (2D Canvas モード)');
+    this.addTickerEvent('🏡', '10人の住民たちが自律生活をスタートしました！ (住民をつまんで持ち上げてポイッと移動できます！)');
   }
 
   addTickerEvent(icon, msg) {
@@ -49,20 +52,48 @@ class ResidentLifeGame {
 
   initControls() {
     let isMouseDown = false;
-    let prevMouseX = 0;
-    let prevMouseY = 0;
 
     this.canvas.addEventListener('mousedown', (e) => {
       isMouseDown = true;
-      prevMouseX = e.clientX;
-      prevMouseY = e.clientY;
+
+      let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
+      let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
+
+      // 1. MOUSE GRAB: Check if clicked directly on a Resident to pick them up!
+      let targetRes = null;
+      for (let r of this.residents) {
+        if (Math.hypot(r.x - worldX, r.y - worldY) < 28) {
+          targetRes = r;
+          break;
+        }
+      }
+
+      if (targetRes) {
+        this.grabbedResident = targetRes;
+        this.grabbedResident.pickup();
+        window.AudioSynth.play('pop');
+        this.selectResident(targetRes);
+        return;
+      }
+
+      // 2. Camera Drag Panning
       this.camera2D.isDragging = true;
       this.camera2D.dragStartX = e.clientX - this.camera2D.panX;
       this.camera2D.dragStartY = e.clientY - this.camera2D.panY;
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (isMouseDown) {
+      let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
+      let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
+
+      // Update Grabbed Resident Position to follow mouse cursor!
+      if (this.grabbedResident) {
+        this.grabbedResident.x = worldX;
+        this.grabbedResident.y = worldY;
+        return;
+      }
+
+      if (isMouseDown && this.camera2D.isDragging) {
         this.camera2D.panX = e.clientX - this.camera2D.dragStartX;
         this.camera2D.panY = e.clientY - this.camera2D.dragStartY;
         this.camera2D.followingResident = null;
@@ -70,9 +101,18 @@ class ResidentLifeGame {
       }
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
       isMouseDown = false;
       this.camera2D.isDragging = false;
+
+      // MOUSE DROP: Drop grabbed resident at cursor location!
+      if (this.grabbedResident) {
+        let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
+        let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
+        this.grabbedResident.dropAt(worldX, worldY);
+        window.AudioSynth.play('happy');
+        this.grabbedResident = null;
+      }
     });
 
     this.canvas.addEventListener('wheel', (e) => {
@@ -86,36 +126,17 @@ class ResidentLifeGame {
       this.camera2D.zoom = newZoom;
     }, { passive: false });
 
-    // Click Raycast / 2D Tile Click Selection
+    // Click House Selection
     this.canvas.addEventListener('click', (e) => {
+      if (this.grabbedResident) return;
       let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
       let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
 
-      // 1. Resident Selection
-      let clickedRes = null;
-      for (let r of this.residents) {
-        if (Math.hypot(r.x - worldX, r.y - worldY) < 32) {
-          clickedRes = r;
-          break;
-        }
-      }
-
-      if (clickedRes) {
-        this.selectResident(clickedRes);
-        window.AudioSynth.play('click');
-        let inHouse = this.world.houses.find(h => h.id === clickedRes.homeHouseId);
-        if (inHouse) this.selectedHouseId = inHouse.id;
-        return;
-      }
-
-      // 2. House Selection (Open/Close Interior Room View)
       let clickedHouse = this.world.getHouseAtPixel(worldX, worldY);
       if (clickedHouse) {
         this.selectedHouseId = this.selectedHouseId === clickedHouse.id ? null : clickedHouse.id;
         window.AudioSynth.play('click');
         this.addTickerEvent('🏠', `${clickedHouse.name} の室内観察モードを${this.selectedHouseId ? '展開しました' : '閉じました'}`);
-      } else {
-        this.selectedHouseId = null;
       }
     });
   }
@@ -155,7 +176,10 @@ class ResidentLifeGame {
       r.update(this.world, timeInfo, this.residents, (icon, msg) => this.addTickerEvent(icon, msg), (type) => window.AudioSynth.play(type));
     }
 
-    if (this.tickCount % 2200 === 0) {
+    // Periodic Town Events (Makeovers & Construction & Gossip)
+    if (this.tickCount % 1200 === 0) {
+      this.eventsManager.triggerMakeoverEvent();
+    } else if (this.tickCount % 2200 === 0) {
       this.eventsManager.triggerConstructionEvent();
     } else if (this.tickCount % 1500 === 0) {
       this.eventsManager.triggerRandomTownGossip();
@@ -175,6 +199,9 @@ class ResidentLifeGame {
   render() {
     let timeInfo = this.getTimeInfo();
 
+    // Reset Frame Buffer for Non-overlapping Speech Bubbles
+    window.SpeechBubbleRenderer.resetFrame();
+
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.save();
     this.ctx.translate(this.camera2D.panX, this.camera2D.panY);
@@ -183,7 +210,7 @@ class ResidentLifeGame {
     // 1. World Terrain & Large Houses Interior
     window.WorldRenderer.render(this.ctx, this.world, timeInfo.period, this.tickCount, this.selectedHouseId);
 
-    // 2. Vector Residents & Expressions & Speech Bubbles
+    // 2. Vector Residents & Non-overlapping Speech Bubbles
     let sorted = [...this.residents].sort((a, b) => a.y - b.y);
     for (let r of sorted) {
       window.ResidentRenderer.render(this.ctx, r, this.tickCount);
@@ -224,7 +251,7 @@ class ResidentLifeGame {
     let icon = '☀️';
     if (hour >= 5 && hour < 9) { period = 'morning'; icon = '🌅'; }
     else if (hour >= 9 && hour < 17) { period = 'day'; icon = '☀️'; }
-    else if (hour >= 17 && hour < 20) { period = 'evening'; icon = '🌆'; }
+    else if (hour >= 17 && hour < 20) { period = 'evening'; icon = '<ctrl42>'; }
     else { period = 'night'; icon = '🌙'; }
 
     return { hour, minute, period, icon, timeStr: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` };

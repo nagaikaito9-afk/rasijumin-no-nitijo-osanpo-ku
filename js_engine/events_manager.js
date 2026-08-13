@@ -1,5 +1,5 @@
 /**
- * events_manager.js - Town Events, Gossip, Construction, Romance & Pond Accidents
+ * events_manager.js - Town Events, Gossip, Construction, Salon Makeovers & Romance
  */
 
 class EventsManager {
@@ -13,7 +13,7 @@ class EventsManager {
     let r2 = this.game.residents[Math.floor(Math.random() * this.game.residents.length)];
     if (r1.id === r2.id) return;
 
-    let gossipMsg = `【噂話】${r1.name}が${r2.name}にナイショでプレセントを探しているらしい…？`;
+    let gossipMsg = `【噂話】${r1.name}が${r2.name}にナイショでプレゼントを探しているらしい…？`;
     r1.say("内緒なんだけどね…ふふふ♪", 240);
     this.game.addTickerEvent('🗣️', gossipMsg);
   }
@@ -31,6 +31,13 @@ class EventsManager {
         window.AudioSynth.play('happy');
       }, 12000);
     }
+  }
+
+  triggerMakeoverEvent() {
+    if (this.game.residents.length === 0) return;
+    let resident = this.game.residents[Math.floor(Math.random() * this.game.residents.length)];
+    resident.applyMakeover((icon, text) => this.game.addTickerEvent(icon, text));
+    window.AudioSynth.play('happy');
   }
 }
 

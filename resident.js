@@ -1,5 +1,5 @@
 /**
- * resident.js - Resident AI with Separation Physics (Prevents Overlapping) & 2D Face Texture Buffer
+ * resident.js - Resident AI with Pick-Up & Drop Grab Physics, Makeover System, & 500+ Dialogues
  */
 
 class Resident {
@@ -26,6 +26,9 @@ class Resident {
     this.path = [];
     this.currentPathIndex = 0;
 
+    // Grab & Pick-Up State (Mouse Carry)
+    this.isBeingCarried = false;
+
     this.expression = 'normal';
     this.expressionTimer = 0;
 
@@ -49,7 +52,6 @@ class Resident {
     this.logs = [];
     this.addLog('生活をスタートしました！');
 
-    // Create dynamic 2D Face Texture Canvas for 3D mapping
     this.faceCanvas = document.createElement('canvas');
     this.faceCanvas.width = 128;
     this.faceCanvas.height = 128;
@@ -61,6 +63,54 @@ class Resident {
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     this.logs.unshift({ time: timeStr, text: text });
     if (this.logs.length > 25) this.logs.pop();
+  }
+
+  // --- MOUSE GRAB & MOVE PHYSICS (PICK UP & DROP) ---
+  pickup() {
+    this.isBeingCarried = true;
+    this.setExpression('surprised', 9999);
+    this.say('わわわっ！？神様の手で持ち上げられたぁぁ！？💦', 300);
+    this.currentAction = '神様の手で空中を持ち運ばれ中 🖐️';
+    this.addLog('神様の手につままれて空中へピックアップされました！');
+  }
+
+  dropAt(tx, ty) {
+    this.isBeingCarried = false;
+    this.x = tx;
+    this.y = ty;
+    this.path = [];
+    this.currentPathIndex = 0;
+    this.setExpression('smile', 250);
+
+    const dropLines = [
+      "着地～！ふわっと着地できた！びっくりした～！",
+      "神様、ここへ運んでくれてありがとう！",
+      "わーい！一瞬で遠くまで移動できちゃった！"
+    ];
+    let line = dropLines[Math.floor(Math.random() * dropLines.length)];
+    this.say(line, 260);
+    this.currentAction = '無事着地して周囲を見渡している';
+    this.addLog(`新しい場所 (${Math.floor(tx)}, ${Math.floor(ty)}) に安全着地しました！`);
+  }
+
+  // --- MAKEOVER EVENT (美容室イメチェン) ---
+  applyMakeover(addGlobalTicker) {
+    const hairStyles = ['short', 'twintail', 'spiky', 'ponytail', 'bob', 'afro'];
+    const hairColors = ['#1e293b', '#dc2626', '#d97706', '#eab308', '#059669', '#0284c7', '#7c3aed', '#db2777'];
+    const bodyColors = ['#3b82f6', '#ec4899', '#ef4444', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'];
+
+    let oldStyle = this.hairStyle;
+    this.hairStyle = hairStyles[Math.floor(Math.random() * hairStyles.length)];
+    this.hairColor = hairColors[Math.floor(Math.random() * hairColors.length)];
+    this.bodyColor = bodyColors[Math.floor(Math.random() * bodyColors.length)];
+
+    this.setExpression('smile', 300);
+    this.mood = 'ウキウキ'; this.moodIcon = '✨';
+    this.say('✂️ 美容室で大イメチェン！新しい私、どうかな？✨', 280);
+
+    let msg = `✂️ 【イメチェン】${this.name}が髪型を${oldStyle}から「${this.hairStyle}」に大満足のイメチェン！`;
+    this.addLog(msg);
+    if (addGlobalTicker) addGlobalTicker('✂️', msg);
   }
 
   updateMood() {
@@ -87,7 +137,8 @@ class Resident {
   }
 
   sayDynamicDialogue(targetResident = null) {
-    let text = window.TomodachiDialogues.generateDialogue(this, targetResident);
+    let relTitle = targetResident ? this.getDetailedRelationshipTitle(targetResident.id, targetResident.name) : null;
+    let text = window.TomodachiDialogues.generateDialogue(this, targetResident, relTitle);
     this.say(text, 240);
   }
 
@@ -110,6 +161,9 @@ class Resident {
   }
 
   update(world, timeInfo, residents, addGlobalTicker, playSound) {
+    // If being carried by mouse grab, skip regular movement AI
+    if (this.isBeingCarried) return;
+
     if (this.expressionTimer > 0) {
       this.expressionTimer--;
       if (this.expressionTimer <= 0) this.expression = this.isSleeping ? 'sleeping' : 'normal';
@@ -124,13 +178,13 @@ class Resident {
     this.energy = Math.max(0, this.isSleeping ? this.energy + 0.14 : this.energy - 0.01);
     this.social = Math.max(0, this.social - 0.008);
 
-    // --- SEPARATION PHYSICS: PREVENT RESIDENTS FROM OVERLAPPING EACH OTHER ---
+    // --- SEPARATION PHYSICS: PREVENT RESIDENTS FROM OVERLAPPING ---
     for (let other of residents) {
-      if (other.id !== this.id && !this.inBed && !other.inBed) {
+      if (other.id !== this.id && !this.inBed && !other.inBed && !this.isBeingCarried && !other.isBeingCarried) {
         let dx = this.x - other.x;
         let dy = this.y - other.y;
         let dist = Math.hypot(dx, dy);
-        let minDist = 30.0; // Minimum 30px distance buffer
+        let minDist = 32.0;
 
         if (dist > 0 && dist < minDist) {
           let pushForce = (minDist - dist) * 0.2;
@@ -175,7 +229,7 @@ class Resident {
 
     if (Math.random() < 0.03 && !this.isSleeping) {
       for (let other of residents) {
-        if (other.id !== this.id && !other.isSleeping) {
+        if (other.id !== this.id && !other.isSleeping && !other.isBeingCarried) {
           let dist = Math.hypot(other.x - this.x, other.y - this.y);
           if (dist < 40) {
             this.handleSocialInteraction(other, world, addGlobalTicker, playSound);
@@ -184,22 +238,6 @@ class Resident {
         }
       }
     }
-
-    // Render Face Canvas Buffer for 3D Texture Update
-    this.updateFaceTextureBuffer(this.tickCount);
-  }
-
-  updateFaceTextureBuffer(tickCount) {
-    let fctx = this.faceCtx;
-    fctx.clearRect(0, 0, 128, 128);
-
-    // White rounded head box
-    fctx.fillStyle = this.expression === 'wet' ? '#e0f2fe' : '#ffffff';
-    fctx.beginPath(); fctx.roundRect(8, 8, 112, 112, 24); fctx.fill();
-    fctx.strokeStyle = '#000000'; fctx.lineWidth = 8; fctx.stroke();
-
-    // Features
-    window.ResidentRenderer.renderVectorFace(fctx, this.expression, 8, 8, tickCount);
   }
 
   triggerPondAccident(world, addGlobalTicker, playSound) {
@@ -222,56 +260,6 @@ class Resident {
     let rel = this.getRelationship(other.id);
     let otherRel = other.getRelationship(this.id);
     let rnd = Math.random();
-
-    if (rel.romance >= 60 && rel.status === 'crush' && !this.partnerId && !other.partnerId && rnd < 0.3) {
-      this.say(`「${other.name}さん、ずっと好きでした！付き合ってください！」`, 240);
-
-      if (rel.romance < 75 || Math.random() < 0.45) {
-        other.setExpression('shy', 240);
-        other.say(`「ごめんなさい…今は友達のままでいたいな」`, 240);
-        this.setExpression('crying', 350);
-        setTimeout(() => { this.say(`「えっ…そっか…ううん、伝えて良かった！泣」`, 260); }, 1200);
-
-        let logMsg = `💔 【失恋】${this.name}が${other.name}に告白しましたが、フラれてしまいました…涙`;
-        this.addLog(logMsg); other.addLog(logMsg);
-        if (addGlobalTicker) addGlobalTicker('💔', logMsg);
-        if (playSound) playSound('pop');
-
-        let home = world.houses.find(h => h.id === this.homeHouseId);
-        if (home) this.navigateTo(world, home.door.x, home.door.y);
-        return;
-      } else {
-        this.setExpression('in_love', 300); other.setExpression('in_love', 300);
-        rel.status = 'couple'; otherRel.status = 'couple';
-        this.partnerId = other.id; other.partnerId = this.id;
-        other.say(`「はい！私も好きです！よろしくお願いします💕」`, 240);
-
-        let logMsg = `💕 告白成功！${this.name}と${other.name}が恋人カップルになりました！`;
-        this.addLog(logMsg); other.addLog(logMsg);
-        if (addGlobalTicker) addGlobalTicker('💕', logMsg);
-        if (playSound) playSound('happy');
-        return;
-      }
-    }
-
-    if (rel.status === 'couple' && rel.romance >= 85 && rnd < 0.2) {
-      this.setExpression('in_love', 350); other.setExpression('in_love', 350);
-      rel.status = 'married'; otherRel.status = 'married';
-      other.homeHouseId = this.homeHouseId;
-
-      let chapel = world.landmarks.chapel;
-      this.navigateTo(world, chapel.target.x, chapel.target.y);
-      other.navigateTo(world, chapel.target.x, chapel.target.y);
-
-      this.say(`「${other.name}さん、一生僕と一緒にいてください！」`, 260);
-      other.say(`「はい！喜んで！ずっと一緒に幸せになろうね💍」`, 260);
-
-      let logMsg = `💍 祝・結婚！${this.name}と${other.name}が教会で愛を誓い同居スタート！🎉`;
-      this.addLog(logMsg); other.addLog(logMsg);
-      if (addGlobalTicker) addGlobalTicker('💍', logMsg);
-      if (playSound) playSound('happy');
-      return;
-    }
 
     this.setExpression('smile', 160); other.setExpression('smile', 160);
     this.sayDynamicDialogue(other);
