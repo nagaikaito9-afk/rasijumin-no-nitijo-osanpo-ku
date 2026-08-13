@@ -1,10 +1,12 @@
 /**
- * main.js - Pure WebGL 3D Main Entry Point & Loop
+ * main.js - Crisp 2D Canvas Main Game Controller
  */
 
 class ResidentLifeGame {
   constructor() {
-    this.threeCanvas = document.getElementById('three-canvas');
+    this.canvas = document.getElementById('game-canvas');
+    this.ctx = this.canvas.getContext('2d');
+
     this.timeInSeconds = 360; // Start 06:00 AM
     this.tickCount = 0;
 
@@ -13,9 +15,9 @@ class ResidentLifeGame {
     this.selectedResident = null;
     this.selectedHouseId = null;
 
-    // Initialize Dedicated Three.js WebGL 3D Renderer (NO getContext('2d') on threeCanvas!)
-    this.threeRenderer = new window.ThreeRenderer(this.threeCanvas);
-    this.threeRenderer.init3DWorld(this.world);
+    // 2D Camera Controller (Pan, Zoom, Follow)
+    this.camera2D = new window.CameraSystem(this.canvas);
+    this.camera2D.centerOn(this.world.width, this.world.height);
 
     this.eventsManager = new window.EventsManager(this);
 
@@ -29,12 +31,16 @@ class ResidentLifeGame {
   }
 
   resizeCanvas() {
-    if (this.threeRenderer) this.threeRenderer.onWindowResize();
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    if (this.camera2D) {
+      this.camera2D.centerOn(this.world.width, this.world.height);
+    }
   }
 
   initResidents() {
     this.residents = Resident.createRoster10(this.world.houses);
-    this.addTickerEvent('🚀', '【完全3D WebGL アプデ完了】 美しい3D箱庭世界が起動しました！');
+    this.addTickerEvent('🏡', '10人の住民たちが自律生活をスタートしました！ (2D Canvas モード)');
   }
 
   addTickerEvent(icon, msg) {
@@ -46,56 +52,84 @@ class ResidentLifeGame {
     let prevMouseX = 0;
     let prevMouseY = 0;
 
-    this.threeCanvas.addEventListener('mousedown', (e) => {
+    this.canvas.addEventListener('mousedown', (e) => {
       isMouseDown = true;
       prevMouseX = e.clientX;
       prevMouseY = e.clientY;
+      this.camera2D.isDragging = true;
+      this.camera2D.dragStartX = e.clientX - this.camera2D.panX;
+      this.camera2D.dragStartY = e.clientY - this.camera2D.panY;
     });
 
     window.addEventListener('mousemove', (e) => {
       if (isMouseDown) {
-        let deltaX = e.clientX - prevMouseX;
-        let deltaY = e.clientY - prevMouseY;
-        prevMouseX = e.clientX;
-        prevMouseY = e.clientY;
-
-        // 3D Orbit Camera Drag Rotate
-        this.threeRenderer.camera.position.x -= deltaX * 0.15;
-        this.threeRenderer.camera.position.z -= deltaY * 0.15;
-        this.threeRenderer.camera.lookAt(0, 0, 0);
-        this.threeRenderer.camera.followingResident = null;
+        this.camera2D.panX = e.clientX - this.camera2D.dragStartX;
+        this.camera2D.panY = e.clientY - this.camera2D.dragStartY;
+        this.camera2D.followingResident = null;
         this.updateFollowHUD();
       }
     });
 
-    window.addEventListener('mouseup', () => { isMouseDown = false; });
+    window.addEventListener('mouseup', () => {
+      isMouseDown = false;
+      this.camera2D.isDragging = false;
+    });
 
-    this.threeCanvas.addEventListener('wheel', (e) => {
+    this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      let zoomFactor = e.deltaY < 0 ? 0.9 : 1.1;
-      this.threeRenderer.camera.position.multiplyScalar(zoomFactor);
+      let zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      let newZoom = Math.max(0.5, Math.min(2.5, this.camera2D.zoom * zoomFactor));
+      let mouseX = e.clientX;
+      let mouseY = e.clientY;
+      this.camera2D.panX = mouseX - (mouseX - this.camera2D.panX) * (newZoom / this.camera2D.zoom);
+      this.camera2D.panY = mouseY - (mouseY - this.camera2D.panY) * (newZoom / this.camera2D.zoom);
+      this.camera2D.zoom = newZoom;
     }, { passive: false });
 
-    // Click Raycast Selection
-    this.threeCanvas.addEventListener('click', (e) => {
-      let clickedRes = this.residents[Math.floor(Math.random() * this.residents.length)];
+    // Click Raycast / 2D Tile Click Selection
+    this.canvas.addEventListener('click', (e) => {
+      let worldX = (e.clientX - this.camera2D.panX) / this.camera2D.zoom;
+      let worldY = (e.clientY - this.camera2D.panY) / this.camera2D.zoom;
+
+      // 1. Resident Selection
+      let clickedRes = null;
+      for (let r of this.residents) {
+        if (Math.hypot(r.x - worldX, r.y - worldY) < 32) {
+          clickedRes = r;
+          break;
+        }
+      }
+
       if (clickedRes) {
         this.selectResident(clickedRes);
         window.AudioSynth.play('click');
+        let inHouse = this.world.houses.find(h => h.id === clickedRes.homeHouseId);
+        if (inHouse) this.selectedHouseId = inHouse.id;
+        return;
+      }
+
+      // 2. House Selection (Open/Close Interior Room View)
+      let clickedHouse = this.world.getHouseAtPixel(worldX, worldY);
+      if (clickedHouse) {
+        this.selectedHouseId = this.selectedHouseId === clickedHouse.id ? null : clickedHouse.id;
+        window.AudioSynth.play('click');
+        this.addTickerEvent('🏠', `${clickedHouse.name} の室内観察モードを${this.selectedHouseId ? '展開しました' : '閉じました'}`);
+      } else {
+        this.selectedHouseId = null;
       }
     });
   }
 
   selectResident(resident) {
     this.selectedResident = resident;
-    this.threeRenderer.camera.followingResident = resident;
+    this.camera2D.followingResident = resident;
     window.InspectorUI.updateInspectorUI(resident);
     this.updateFollowHUD();
     document.getElementById('inspector-panel').classList.remove('hidden');
   }
 
   unfollowResident() {
-    this.threeRenderer.camera.followingResident = null;
+    this.camera2D.followingResident = null;
     this.updateFollowHUD();
   }
 
@@ -127,8 +161,9 @@ class ResidentLifeGame {
       this.eventsManager.triggerRandomTownGossip();
     }
 
-    // Update 3D Resident Avatars & Canvas Face Texture Buffers
-    this.threeRenderer.update3DResidents(this.residents, this.tickCount, this.world.tileSize, this.selectedHouseId);
+    if (this.camera2D) {
+      this.camera2D.updateFollow();
+    }
 
     if (this.selectedResident && !document.getElementById('inspector-panel').classList.contains('hidden')) {
       window.InspectorUI.updateLiveValues(this.selectedResident, this.residents);
@@ -139,7 +174,45 @@ class ResidentLifeGame {
 
   render() {
     let timeInfo = this.getTimeInfo();
-    this.threeRenderer.render(timeInfo.period, this.threeRenderer.camera.followingResident, this.world.tileSize);
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.save();
+    this.ctx.translate(this.camera2D.panX, this.camera2D.panY);
+    this.ctx.scale(this.camera2D.zoom, this.camera2D.zoom);
+
+    // 1. World Terrain & Large Houses Interior
+    window.WorldRenderer.render(this.ctx, this.world, timeInfo.period, this.tickCount, this.selectedHouseId);
+
+    // 2. Vector Residents & Expressions & Speech Bubbles
+    let sorted = [...this.residents].sort((a, b) => a.y - b.y);
+    for (let r of sorted) {
+      window.ResidentRenderer.render(this.ctx, r, this.tickCount);
+
+      if (this.selectedResident && r.id === this.selectedResident.id) {
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.beginPath();
+        this.ctx.ellipse(r.x, r.y + 14, 16, 8, 0, 0, Math.PI * 2);
+        this.ctx.stroke();
+      }
+    }
+
+    // 3. Time Lighting Overlay
+    this.renderLightingOverlay2D(timeInfo.period);
+
+    this.ctx.restore();
+  }
+
+  renderLightingOverlay2D(period) {
+    let overlayColor = null;
+    if (period === 'morning') overlayColor = 'rgba(251, 146, 60, 0.12)';
+    else if (period === 'evening') overlayColor = 'rgba(249, 115, 22, 0.22)';
+    else if (period === 'night') overlayColor = 'rgba(15, 23, 42, 0.55)';
+
+    if (overlayColor) {
+      this.ctx.fillStyle = overlayColor;
+      this.ctx.fillRect(0, 0, this.world.width, this.world.height);
+    }
   }
 
   getTimeInfo() {
@@ -175,14 +248,14 @@ class ResidentLifeGame {
     let t = this.getTimeInfo();
     document.getElementById('clock-display').innerText = t.timeStr;
     document.getElementById('time-icon').innerText = t.icon;
-    document.getElementById('weather-text').innerText = t.period === 'night' ? '満天の星空 (完全3D WebGL)' : t.period === 'evening' ? 'きれいな夕焼け (完全3D WebGL)' : '爽やかな晴れ (完全3D WebGL)';
+    document.getElementById('weather-text').innerText = t.period === 'night' ? '満天の星空 (2D Canvas)' : t.period === 'evening' ? 'きれいな夕焼け (2D Canvas)' : '爽やかな晴れ (2D Canvas)';
   }
 
   updateFollowHUD() {
     let hud = document.getElementById('following-hud');
-    if (this.threeRenderer.camera.followingResident) {
+    if (this.camera2D.followingResident) {
       hud.classList.remove('hidden');
-      document.getElementById('follow-name').innerText = `${this.threeRenderer.camera.followingResident.name} を3Dカメラ追跡中`;
+      document.getElementById('follow-name').innerText = `${this.camera2D.followingResident.name} をカメラ追跡中`;
     } else {
       hud.classList.add('hidden');
     }

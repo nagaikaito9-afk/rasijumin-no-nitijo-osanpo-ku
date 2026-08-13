@@ -3,27 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>住民の日常おさんぽ・ぐらし | 完全3D WebGL シミュレーション</title>
-  <meta name="description" content="Three.js WebGLによる完全3D空間で暮らす10人の住民たち。表情豊かなアバター、立体的な街、部屋のインテリア、リアルタイムな影。">
+  <title>住民の日常おさんぽ・ぐらし | 2D Canvas 放置観察シミュレーション</title>
+  <meta name="description" content="10人の住民たちが自律生活する箱庭ゲーム。ベクター描画の表情、室内観察、会話吹き出し、結婚、同居、離婚、新築イベント。">
   
   <!-- Modular CSS Stylesheets -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/hud.css">
   <link rel="stylesheet" href="styles/inspector.css">
-
-  <!-- Three.js WebGL 3D Graphics Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
   <div id="app-container">
-    <!-- Main Dedicated 3D WebGL Canvas -->
-    <canvas id="three-canvas"></canvas>
+    <!-- Main 2D Canvas Viewport -->
+    <canvas id="game-canvas"></canvas>
 
     <!-- Top Navigation Header -->
     <header class="top-nav">
       <div class="brand-badge">
         <h1>🏡 住民の日常おさんぽ・ぐらし</h1>
-        <span class="sub-tag">完全3D WebGL 版</span>
+        <span class="sub-tag">2D Canvas 放置観察版</span>
       </div>
 
       <div class="world-time-card">
@@ -32,7 +29,7 @@
           <span id="clock-display">06:00</span>
         </div>
         <div class="weather-badge">
-          <span id="weather-text">爽やかな晴れ (完全3D WebGL)</span>
+          <span id="weather-text">爽やかな晴れ</span>
         </div>
       </div>
     </header>
@@ -121,7 +118,6 @@
   <script src="js_engine/hobbies_system.js"></script>
   <script src="js_engine/world_render.js"></script>
   <script src="js_engine/resident_render.js"></script>
-  <script src="js_engine/three_renderer.js"></script>
   <script src="js_engine/events_manager.js"></script>
   <script src="js_engine/inspector_ui.js"></script>
   <script src="js_engine/main.js"></script>

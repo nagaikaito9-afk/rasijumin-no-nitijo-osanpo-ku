@@ -50,8 +50,8 @@ window.WorldRenderer = {
       this.renderLargeHouse(ctx, h, isOpened, timeOfDay, tickCount, ts);
     }
 
-    // 3. Landmarks & Decorations
-    world.renderLandmarks(ctx, timeOfDay, tickCount);
+    // 3. Landmarks & Trees
+    this.renderLandmarks(ctx, world, timeOfDay, tickCount);
   },
 
   renderLargeHouse(ctx, h, openInterior, timeOfDay, tickCount, ts) {
@@ -124,6 +124,42 @@ window.WorldRenderer = {
       let isNight = timeOfDay === 'night' || timeOfDay === 'evening';
       ctx.fillStyle = isNight ? '#fef08a' : '#93c5fd';
       ctx.fillRect(hx + 14, hy + 32, 22, 20); ctx.fillRect(hx + hw - 36, hy + 32, 22, 20);
+    }
+  },
+
+  renderLandmarks(ctx, world, timeOfDay, tickCount) {
+    const ts = world.tileSize;
+
+    // Fountain Park
+    let fx = 27 * ts;
+    let fy = 19 * ts;
+    ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(fx + 16, fy + 16, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(fx + 16, fy + 16, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    let waterR = 6 + Math.sin(tickCount * 0.2) * 3;
+    ctx.beginPath(); ctx.arc(fx + 16, fy + 16, waterR, 0, Math.PI * 2); ctx.fill();
+
+    // Campfire
+    let cx = 45 * ts;
+    let cy = 24 * ts;
+    ctx.fillStyle = '#78350f'; ctx.fillRect(cx + 4, cy + 10, 24, 12);
+    let fireR = 5 + Math.sin(tickCount * 0.4) * 2;
+    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(cx + 16, cy + 12, fireR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(cx + 16, cy + 12, fireR * 0.5, 0, Math.PI * 2); ctx.fill();
+
+    // Trees & Flowers
+    if (world.decorations) {
+      for (let dec of world.decorations) {
+        let dx = dec.x * ts;
+        let dy = dec.y * ts;
+        if (dec.type === 'tree') {
+          ctx.fillStyle = '#78350f'; ctx.fillRect(dx + 12, dy + 16, 8, 14);
+          ctx.fillStyle = '#15803d'; ctx.beginPath(); ctx.arc(dx + 16, dy + 14, 16, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(dx + 12, dy + 10, 10, 0, Math.PI * 2); ctx.fill();
+        } else if (dec.type === 'flower') {
+          ctx.fillStyle = dec.color || '#ff7675'; ctx.beginPath(); ctx.arc(dx + 16, dy + 16, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
   }
 };
